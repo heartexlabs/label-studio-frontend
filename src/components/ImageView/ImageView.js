@@ -140,6 +140,7 @@ export default observer(
       const oldScale = stage.scaleX();
 
       let mousePointTo;
+      let zoomDirection;
       let newScale;
       let pos;
       let newPos;
@@ -150,7 +151,8 @@ export default observer(
           y: stage.getPointerPosition().y / oldScale - stage.y() / oldScale,
         };
 
-        newScale = e.evt.deltaY > 0 ? oldScale * scaleBy : oldScale / scaleBy;
+        zoomDirection = item.reversezoom ? -e.evt.deltaY : e.evt.deltaY;
+        newScale = zoomDirection > 0 ? oldScale * scaleBy : oldScale / scaleBy;
 
         newPos = {
           x: -(mousePointTo.x - stage.getPointerPosition().x / newScale) * newScale,

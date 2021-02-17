@@ -38,6 +38,7 @@ import { customTypes } from "../../core/CustomTypes";
  * @param {number=} [gridSize=30]             - size of the grid
  * @param {string=} [gridColor="#EEEEF4"]     - color of the grid, opacity is 0.15
  * @param {boolean} [zoomControl=false]       - show zoom controls in toolbar
+ * @param {boolean} [reverseZoom=false]       - reverse zoom direction (scroll up = zoom in when true)
  * @param {boolean} [brightnessControl=false] - show brightness control in toolbar
  * @param {boolean} [contrastControl=false]   - show contrast control in toolbar
  * @param {boolean} [rotateControl=false]     - show rotate control in toolbar
@@ -61,6 +62,7 @@ const TagAttrs = types.model({
   showlabels: types.optional(types.boolean, false),
 
   zoomcontrol: types.optional(types.boolean, false),
+  reversezoom: types.optional(types.boolean, false),
   brightnesscontrol: types.optional(types.boolean, false),
   contrastcontrol: types.optional(types.boolean, false),
   rotatecontrol: types.optional(types.boolean, false),
