@@ -37,6 +37,7 @@ import "react-dropdown-tree-select/dist/styles.css";
 const TagAttrs = types.model({
   name: types.identifier,
   toname: types.maybeNull(types.string),
+  maxusages: types.maybeNull(types.number),
 });
 
 const Model = types
@@ -48,6 +49,9 @@ const Model = types
     type: "taxonomy",
     children: Types.unionArray(["choice"]),
   })
+  .volatile(() => ({
+    maxUsagesReached: false,
+  }))
   .views(self => ({
     get annotation() {
       return getRoot(self).annotationStore.selected;
@@ -81,6 +85,7 @@ const Model = types
       needsUpdate() {
         if (self.result) selected = self.result.mainValue;
         else selected = [];
+        self.maxUsagesReached = selected.length >= self.maxusages;
       },
 
       selectedValues() {
@@ -89,6 +94,7 @@ const Model = types
 
       onChange(node, checked) {
         selected = checked.map(s => s.path);
+        self.maxUsagesReached = selected.length >= self.maxusages;
 
         if (self.result) {
           self.result.area.setValue(self);
@@ -104,17 +110,16 @@ const Model = types
       },
 
       traverse(root) {
+        const maxusages = self.maxusages;
         const visitNode = function(node, parents = []) {
           const label = node.value;
           const path = [...parents, label];
-          const obj = {
-            label,
-            path,
-            // @todo this check is heavy for long lists, optimize
-            // search through last items in every stored path
-            // if it's not saved as selected RDTS should handle it by its own, so undefined
-            checked: selected.some(p => p.length && p[p.length - 1] === label) || undefined,
-          };
+          // @todo this check is heavy for long lists, optimize
+          // search through last items in every stored path
+          // if it's not saved as selected RDTS should handle it by its own, so undefined
+          const checked = selected.some(p => p.length && p[p.length - 1] === label) || undefined;
+          const disabled = !checked && maxusages && selected.length >= maxusages;
+          const obj = { label, path, checked, disabled };
 
           if (node.children) {
             obj.children = node.children.map(n => visitNode(n, path));
@@ -136,6 +141,7 @@ const HtxTaxonomy = observer(({ item }) => {
   return (
     <div style={{ ...style }}>
       <DropdownTreeSelect
+        key={item.maxUsagesReached}
         data={item.traverse(item.children)}
         onChange={item.onChange}
         texts={{ placeholder: "Click to add..." }}
