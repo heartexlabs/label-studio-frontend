@@ -22,7 +22,7 @@ const splitRegions = (regions) => {
   const l = regions.length;
   let i = 0;
 
-  for(i; i < l; i++) {
+  for (i; i < l; i++) {
     const region = regions[i];
 
     if (region.type === "brushregion") {
@@ -38,11 +38,11 @@ const splitRegions = (regions) => {
   };
 };
 
-const Region = memo(({region}) => {
+const Region = memo(({ region }) => {
   return Tree.renderItem(region, false);
 });
 
-const RegionsLayer = memo(({regions, name, useLayers}) => {
+const RegionsLayer = memo(({ regions, name, useLayers }) => {
   const content = regions.map((el) => (
     <Region key={`region-${el.id}`} region={el}/>
   ));
@@ -56,7 +56,7 @@ const RegionsLayer = memo(({regions, name, useLayers}) => {
   );
 });
 
-const Regions = memo(({regions, useLayers = true}) => {
+const Regions = memo(({ regions, useLayers = true }) => {
   return chunks(regions, 15).map((chunk, i) => (
     <RegionsLayer
       key={`chunk-${i}`}
@@ -67,7 +67,7 @@ const Regions = memo(({regions, useLayers = true}) => {
   ));
 });
 
-const Crosshair = memo(forwardRef(({width, height}, ref) => {
+const Crosshair = memo(forwardRef(({ width, height }, ref) => {
   const [pointsV, setPointsV] = useState([50, 0, 50, height]);
   const [pointsH, setPointsH] = useState([0, 100, width, 100]);
   const [x, setX] = useState(100);
@@ -75,7 +75,7 @@ const Crosshair = memo(forwardRef(({width, height}, ref) => {
 
   const [visible, setVisible] = useState(false);
   const strokeWidth = 1;
-  const dashStyle = [3,3];
+  const dashStyle = [3, 3];
 
   if (ref) {
     ref.current = {
@@ -92,7 +92,7 @@ const Crosshair = memo(forwardRef(({width, height}, ref) => {
       },
       updateVisibility(visibility) {
         setVisible(visibility);
-      }
+      },
     };
   }
 
@@ -142,12 +142,12 @@ export default observer(
     canvasX;
     canvasY;
     lastOffsetWidth = -1;
+    lastOffsetHeight = -1;
     propsObserverDispose = [];
     state = {
       imgStyle: {},
-      ratio: 1,
-      pointer: [0, 0]
-    }
+      pointer: [0, 0],
+    };
 
     imageRef = createRef();
     crosshairRef = createRef();
@@ -160,7 +160,7 @@ export default observer(
 
     handleMouseDown = e => {
       const { item } = this.props;
-      item.setSkipInteractions(e.evt && (e.evt.metaKey || e.evt.ctrlKey));
+      item.setSkipInteractions(e.evt && (e.evt.metaKey || e.evt.ctrlKey || e.evt.shiftKey || e.evt.button > 0));
 
       // item.freezeHistory();
       const p = e.target.getParent();
@@ -244,10 +244,10 @@ export default observer(
 
     updateCrosshair = (e) => {
       if (this.crosshairRef.current) {
-        const {x, y} = e.currentTarget.getPointerPosition();
+        const { x, y } = e.currentTarget.getPointerPosition();
         this.crosshairRef.current.updatePointer(x, y);
       }
-    }
+    };
 
     handleError = () => {
       const { item, store } = this.props;
@@ -325,11 +325,16 @@ export default observer(
 
     onResize = () => {
       if (!this.container) return;
-      if (this.container.offsetWidth <= 1) return;
-      if (this.lastOffsetWidth === this.container.offsetWidth) return;
-
+      const { offsetWidth, offsetHeight } = this.container;
+      if (offsetWidth <= 1) return;
+      if (offsetHeight <= 1) return;
+      if (this.lastOffsetWidth === offsetWidth && this.lastOffsetHeight === offsetHeight) return;
+      if (this.props.item.width) {
+        this.props.item.setTargetWidth(this.filler.offsetWidth);
+      }
       this.props.item.onResize(this.container.offsetWidth, this.container.offsetHeight, true);
-      this.lastOffsetWidth = this.container.offsetWidth;
+      this.lastOffsetWidth = offsetWidth;
+      this.lastOffsetHeight = offsetHeight;
     };
 
     componentDidMount() {
@@ -357,16 +362,7 @@ export default observer(
     observerObjectUpdate(){
       this.propsObserverDispose.forEach(dispose => dispose());
       this.propsObserverDispose = [
-        'width',
-        'brightnessGrade',
-        'contrastGrade',
-        'zoomScale',
-        'resize',
-        'rotation',
-        'naturalWidth',
-        'naturalHeight',
-        'zoomingPositionY',
-        'zoomingPositionX',
+        'imageTransform',
       ].map((prop) => {
         return observe(this.props.item, prop, this.updateImageTransform, true);
       });
@@ -375,52 +371,8 @@ export default observer(
     updateImageTransform = () => {
       const { item } = this.props;
 
-      let ratio = 1;
-
-      const imgStyle = {
-        width: item.width,
-        transformOrigin: "left top",
-        transform: 'none',
-        filter: `brightness(${item.brightnessGrade}%) contrast(${item.contrastGrade}%)`,
-      };
-
-      const imgTransform = [];
-
-      if (item.zoomScale !== 1) {
-        const { zoomingPositionX, zoomingPositionY } = item;
-        imgTransform.push("translate(" + zoomingPositionX + "px," + zoomingPositionY + "px)");
-        imgTransform.push("scale(" + item.resize + ", " + item.resize + ")");
-      }
-
-      if (item.rotation) {
-        const translate = {
-          90: `0, -100%`,
-          180: `-100%, -100%`,
-          270: `-100%, 0`,
-        };
-
-        // there is a top left origin already set for zoom; so translate+rotate
-        imgTransform.push(`rotate(${item.rotation}deg)`);
-        imgTransform.push(`translate(${translate[item.rotation] || "0, 0"})`);
-
-        if ([90, 270].includes(item.rotation)) {
-          // we can not rotate img itself, so we change container's size via css margin hack, ...
-          ratio = item.naturalWidth / item.naturalHeight;
-          // ... prepare image size for transform rotation and use position: absolute
-          imgStyle.width = `${ratio * 100}%`;
-        }
-      }
-
-      if (imgTransform?.length > 0) {
-        imgStyle.transform = imgTransform.join(" ");
-      }
-
       if (this.imageRef.current) {
-        Object.assign(this.imageRef.current.style, imgStyle);
-      }
-
-      if (this.state.ratio !== ratio) {
-        this.setState({ ratio });
+        Object.assign(this.imageRef.current.style, item.imageTransform);
       }
     }
 
@@ -432,12 +384,9 @@ export default observer(
 
       return (
         <div className={styles.block}>
-          {item
-            .getToolsManager()
-            .allTools()
-            .map(tool => {
-              return <Fragment key={guidGenerator()}>{tool.viewClass}</Fragment>;
-            })}
+          {item.getToolsManager().allTools().map(tool => {
+            return <Fragment key={guidGenerator()}>{tool.viewClass}</Fragment>;
+          })}
         </div>
       );
     }
@@ -459,15 +408,12 @@ export default observer(
 
       let containerClassName = styles.container;
 
-      if (this.state.ratio !== 1) {
-        containerClassName += " " + styles.rotated;
-      }
-
       if (getRoot(item).settings.fullscreen === false) {
         containerStyle["maxWidth"] = item.maxwidth;
+        containerStyle["maxHeight"] = item.maxheight;
       }
 
-      const {brushRegions, shapeRegions} = splitRegions(regions);
+      const { brushRegions, shapeRegions } = splitRegions(regions);
 
       return (
         <ObjectTag
@@ -487,23 +433,31 @@ export default observer(
             className={containerClassName}
             style={containerStyle}
           >
-            {this.state.ratio !== 1 && (
-              <div
-                className={styles.filler}
-                style={{ marginTop: `${this.state.ratio * 100}%`, width: item.stageWidth }}
+            <div ref={node => {
+              this.filler = node;
+              if (item.width && this.filler) {
+                this.props.item.setTargetWidth(this.filler.offsetWidth);
+              }
+            }} className={styles.filler} style={{ width: item.width || item.naturalWidth * item.stageScale, height: item.height }}>
+              <div className={styles.filler_height} style={{ paddingBottom: `${item.naturalHeight / item.naturalWidth * 100}%`}}/>
+            </div>
+            <div
+              className={styles.frame}
+              style={{ width: item.stageComponentSize.width, height: item.stageComponentSize.height }}
+            >
+              <img
+                ref={ref => {
+                  item.setImageRef(ref);
+                  this.imageRef.current = ref;
+                }}
+                style={item.imageTransform}
+                src={item._value}
+                onLoad={item.updateImageSize}
+                onError={this.handleError}
+                onClick={this.handleOnClick}
+                alt="LS"
               />
-            )}
-            <img
-              ref={ref => {
-                item.setImageRef(ref);
-                this.imageRef.current = ref;
-              }}
-              src={item._value}
-              onLoad={item.updateImageSize}
-              onError={this.handleError}
-              onClick={this.handleOnClick}
-              alt="LS"
-            />
+            </div>
           </div>
           {/* @todo this is dirty hack; rewrite to proper async waiting for data to load */}
           {item.stageWidth <= 1 ? null : (
@@ -515,9 +469,9 @@ export default observer(
               className={"image-element"}
               width={item.stageComponentSize.width}
               height={item.stageComponentSize.height}
-              scaleX={item.stageScale}
-              scaleY={item.stageScale}
-              x={item.zoomingPositionX}
+              scaleX={item.imageScale}
+              scaleY={item.imageScale}
+              x={ item.zoomingPositionX}
               y={item.zoomingPositionY}
               offsetX={item.stageTranslate.x}
               offsetY={item.stageTranslate.y}
@@ -541,11 +495,11 @@ export default observer(
             >
               {regions.length === 0 && (
                 <Layer>
-                  <Line points={[0,0,0,1]} stroke="rgba(0,0,0,0)"/>
+                  <Line points={[0, 0, 0, 1]} stroke="rgba(0,0,0,0)"/>
                 </Layer>
               )}
 
-              {item.grid && item.sizeUpdated && <ImageGrid item={item} />}
+              {item.grid && item.sizeUpdated && <ImageGrid item={item}/>}
 
               {brushRegions.length > 0 && (
                 <Regions
@@ -563,13 +517,13 @@ export default observer(
               )}
 
               {selected && (
-                (selected.type === 'brushregion') ? (
+                (selected.type === "brushregion") ? (
                   Tree.renderItem(selected)
                 ) : (
                   <Layer name="selected">
                     {Tree.renderItem(selected)}
-                    {selected.type !== 'brushregion' && selected.editable && (
-                      <ImageTransformer rotateEnabled={cb && cb.canrotate} selectedShape={item.selectedShape} />
+                    {selected.type !== "brushregion" && selected.editable && (
+                      <ImageTransformer rotateEnabled={cb && cb.canrotate} selectedShape={item.selectedShape}/>
                     )}
                   </Layer>
                 )

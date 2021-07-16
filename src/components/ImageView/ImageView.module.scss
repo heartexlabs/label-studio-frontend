@@ -21,6 +21,7 @@
 }
 
 .wrapper {
+  max-width: 100%;
   position: relative;
   display: flex;
   align-items: flex-start;
@@ -29,22 +30,31 @@
 
 .container {
   overflow: hidden;
+  width: 100%;
 
-  &.rotated {
-    width: 100%;
-    position: relative;
-
-    // margin hack to fill the empty space with given aspect ratio
+    // padding hack to fill the empty space with given aspect ratio
     // see ImageView.render()
-    .filler {
-      content: "";
-      display: block;
-    }
+  .frame {
+    position: absolute;
+    overflow: hidden;
+    top: 0;
+    height: 0;
+  }
+  .frame_height {
+    width: 100%;
+  }
+  .filler {
+    max-width: 100%;
+    position: relative;
+    overflow: hidden;
+  }
+  .filler_height {
+    width: 100%;
+  }
 
-    img {
-      position: absolute;
-      top: 0;
-    }
+  img {
+    position: absolute;
+    top: 0;
   }
 }
 

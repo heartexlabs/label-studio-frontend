@@ -51,7 +51,8 @@ const TagAttrs = types.model({
   value: types.maybeNull(types.string),
   resize: types.maybeNull(types.number),
   width: types.optional(types.string, "100%"),
-  maxwidth: types.optional(types.string, "750px"),
+  maxwidth: types.optional(types.string, "100%"),
+  maxheight: types.optional(types.string, "100vh"),
 
   // rulers: types.optional(types.boolean, true),
   grid: types.optional(types.boolean, false),
@@ -155,10 +156,21 @@ const Model = types
   .volatile(self => ({
     currentImage: 0,
     stageRatio: 1,
+    containerWidth: 1,
+    containerHeight: 1,
+    targetWidth: 0,
   }))
   .views(self => ({
     get store() {
       return getRoot(self);
+    },
+
+    get expectedWidth() {
+      return self.width ? self.targetWidth : self.naturalWidth;
+    },
+
+    get expectedHeight() {
+      return self.width ? self.targetWidth / self.naturalWidth * self.naturalHeight : self.naturalHeight;
     },
 
     get parsedValue() {
@@ -208,6 +220,10 @@ const Model = types
       return self.zoomScale * self.stageRatio;
     },
 
+    get imageScale() {
+      return Math.max(self.expectedWidth * self.zoomScale / self.containerWidth, self.expectedHeight * self.zoomScale / self.containerHeight);
+    },
+
     /**
      * @return {object}
      */
@@ -247,19 +263,53 @@ const Model = types
     get stageComponentSize() {
       if ((self.rotation + 360) % 180 === 90) {
         return {
-          width: self.stageHeight * self.stageRatio,
-          height: self.stageWidth * self.stageRatio,
+          width: self.stageHeight,
+          height: self.stageWidth,
         };
       }
       return {
-        width: self.stageWidth * self.stageRatio,
-        height: self.stageHeight * self.stageRatio,
+        width: self.stageWidth,
+        height: self.stageHeight,
       };
     },
 
     get zoomBy() {
       return parseFloat(self.zoomby);
     },
+
+    get imageTransform() {
+      const imgStyle = {
+        width: `${self.stageComponentSize.width}px`,
+        height: `${self.stageComponentSize.height}px`,
+        transformOrigin: "left top",
+        transform: "none",
+        filter: `brightness(${self.brightnessGrade}%) contrast(${self.contrastGrade}%)`,
+      };
+      const imgTransform = [];
+      if (self.imageScale !== 1) {
+        const { zoomingPositionX, zoomingPositionY } = self;
+        imgTransform.push("translate3d(" + zoomingPositionX + "px," + zoomingPositionY + "px, 0)");
+        imgTransform.push("scale3d(" + self.imageScale + ", " + self.imageScale + ", 1)");
+      }
+
+      if (self.rotation) {
+        const translate = {
+          90: `0, -100%`,
+          180: `-100%, -100%`,
+          270: `-100%, 0`,
+        };
+
+        // there is a top left origin already set for zoom; so translate+rotate
+        imgTransform.push(`rotate(${self.rotation}deg)`);
+        imgTransform.push(`translate(${translate[self.rotation] || "0, 0"})`);
+
+      }
+
+      if (imgTransform?.length > 0) {
+        imgStyle.transform = imgTransform.join(" ");
+      }
+      return imgStyle;
+    }
   }))
 
   // actions for the tools
@@ -346,19 +396,19 @@ const Model = types
     setZoom(scale, x, y) {
       self.resize = scale;
       self.zoomScale = scale;
-      self.zoomingPositionX = x;
-      self.zoomingPositionY = y;
+      self.setZoomPosition(x, y);
+      self._recalculateImageParams();
     },
 
     setZoomPosition(x, y) {
       self.zoomingPositionX = clamp(
         x,
-        self.stageComponentSize.width - self.stageComponentSize.width * self.zoomScale,
+        self.stageComponentSize.width - self.stageComponentSize.width * self.imageScale,
         0,
       );
       self.zoomingPositionY = clamp(
         y,
-        self.stageComponentSize.height - self.stageComponentSize.height * self.zoomScale,
+        self.stageComponentSize.height - self.stageComponentSize.height * self.imageScale,
         0,
       );
     },
@@ -430,7 +480,7 @@ const Model = types
       self.rotation = (self.rotation + degree + 360) % 360;
       let ratioK = 1 / self.stageRatio;
       if ((self.rotation + 360) % 180 === 90) {
-        self.stageRatio = self.initialWidth / self.initialHeight;
+        self.stageRatio = self.naturalWidth / self.naturalHeight;
       } else {
         self.stageRatio = 1;
       }
@@ -440,30 +490,45 @@ const Model = types
           self.zoomingPositionY * ratioK,
           self.stageComponentSize.height -
             self.zoomingPositionX * ratioK -
-            self.stageComponentSize.height * self.zoomScale,
+            self.stageComponentSize.height * self.imageScale,
         );
       }
       if (degree === 90) {
         this.setZoomPosition(
           self.stageComponentSize.width -
             self.zoomingPositionY * ratioK -
-            self.stageComponentSize.width * self.zoomScale,
+            self.stageComponentSize.width * self.imageScale,
           self.zoomingPositionX * ratioK,
         );
       }
     },
 
-    _updateImageSize({ width, height, naturalWidth, naturalHeight, userResize }) {
+    _recalculateImageParams() {
+      if ((self.rotation + 360) % 180 === 90) {
+        let k = Math.min(self.containerWidth / self.expectedHeight, self.containerHeight / self.expectedWidth, self.zoomScale);
+        self.stageWidth = Math.round(self.expectedWidth * k);
+        self.stageHeight = Math.round(self.expectedHeight *  k);
+      } else {
+        const k = Math.min(self.containerWidth / self.expectedWidth, self.containerHeight / self.expectedHeight, self.zoomScale);
+        self.stageWidth = Math.round(self.expectedWidth * k);
+        self.stageHeight = Math.round(self.expectedHeight * k);
+      }
+      self.setZoomPosition(self.zoomingPositionX, self.zoomingPositionY);
+    },
+
+    setTargetWidth(targetWidth) {
+      self.targetWidth = targetWidth;
+    },
+
+    _updateImageSize({ width, height, naturalWidth, naturalHeight, userResize}) {
       if (naturalWidth !== undefined) {
         self.naturalWidth = naturalWidth;
         self.naturalHeight = naturalHeight;
       }
-      if ((self.rotation + 360) % 180 === 90) {
-        self.stageWidth = width;
-        self.stageHeight = Math.round((width / self.initialWidth) * self.initialHeight);
-      } else {
-        self.stageWidth = width;
-        self.stageHeight = height;
+      if (width > 1 && height > 1) {
+        self.containerWidth = width;
+        self.containerHeight = height;
+        self._recalculateImageParams();
       }
 
       self.sizeUpdated = true;
