@@ -898,7 +898,7 @@ export default types
       // convert config to mst model
       let rootModel;
       try {
-        rootModel = Tree.treeToModel(config);
+        rootModel = Tree.treeToModel(config, self.store);
       } catch (e) {
         console.error(e);
         return showError(e);

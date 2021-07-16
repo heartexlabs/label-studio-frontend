@@ -52,6 +52,7 @@ import { RichTextPlainRemote } from "../examples/rich_text_plain_remote"; // esl
  * Different
  */
 import { Pairwise } from "../examples/pairwise";
+import { Repeater } from "../examples/repeater"; // eslint-disable-line no-unused-vars
 
 import { TimeSeries } from "../examples/timeseries";
 import { TimeSeriesSingle } from "../examples/timeseries_single";
@@ -61,7 +62,7 @@ import { TimeSeriesSingle } from "../examples/timeseries_single";
  */
 // import { AllTypes } from "../examples/all_types";
 
-const data = ImagePolygons;
+const data = Repeater;
 
 function getData(task) {
   if (task && task.data) {

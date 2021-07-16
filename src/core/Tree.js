@@ -1,6 +1,7 @@
 import React from "react";
 import { getType, getParentOfType } from "mobx-state-tree";
 import xml2js from "xml2js";
+import { variableNotation } from "./Template";
 
 import Registry from "./Registry";
 import { guidGenerator } from "./Helpers";
@@ -112,7 +113,7 @@ function attrsToProps(attrs) {
  *
  * @param {string} html
  */
-function treeToModel(html) {
+function treeToModel(html, store) {
   /**
    * Remove all line breaks from a string
    * @param {string}
@@ -164,6 +165,29 @@ function treeToModel(html) {
     return hypertexts[htseen];
   }
 
+  function cloneXmlTreeAndReplaceKeys(root, idx, indexFlag = "{{idx}}") {
+    function recursiveClone(node) {
+      let copy = {};
+      for (let key in node) {
+        if (key === '$$') {
+          copy["$$"] = node["$$"].map(c => recursiveClone(c));
+        } else if (key === '$') {
+          copy["$"] = recursiveClone(node["$"]);
+        } else if (typeof node[key] === 'string') {
+          copy[key] = node[key].replace(indexFlag, idx);
+        } else {
+          copy[key] = node[key];
+        }
+      }
+
+      return copy;
+    }
+
+
+    return recursiveClone(root);
+  }
+
+
   /**
    * Generate new node
    * @param {object} node
@@ -181,7 +205,19 @@ function treeToModel(html) {
     const res = [];
 
     for (let chld of node.$$) {
-      if (chld["#name"] !== "__text__") {
+      if (chld["#name"].toLowerCase() === "repeater") {
+        const repeaterArray = variableNotation(chld.$['on'], store.task.dataObj) || [];
+
+        for (let i = 0; i < repeaterArray.length; i++) {
+          let createdView = buildData({ "#name": "View" });
+
+          const cloned = cloneXmlTreeAndReplaceKeys(chld, i, chld.$['indexFlag']);
+          createdView.children = addNode(cloned);
+  
+          res.push(createdView);
+        }
+      }
+      else if (chld["#name"] !== "__text__") {
         const data = buildData(chld);
         const children = addNode(chld);
 

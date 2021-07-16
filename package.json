@@ -70,6 +70,7 @@
     "lint-staged": "^9.5.0",
     "lodash.ismatch": "^4.4.0",
     "lodash.throttle": "^4.1.1",
+    "lodash.get": "^4.4.0",
     "mini-css-extract-plugin": "^1.4.0",
     "mobx": "^5.15.4",
     "mobx-react": "^6",
@@ -185,4 +186,3 @@
     "**/babel-preset-react-app/@babel/runtime"
   ]
 }
-

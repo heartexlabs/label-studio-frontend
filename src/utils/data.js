@@ -1,4 +1,5 @@
 import { isString, escapeHtml } from "./utilities";
+import get from "lodash.get";
 
 /**
  * Simple way to retrieve linked data in `value` param from task
@@ -8,7 +9,9 @@ import { isString, escapeHtml } from "./utilities";
  */
 export const parseValue = (value, task) => {
   if (!value) return;
-  if (value[0] === "$") return task[value.substr(1)];
+  if (value[0] === "$") {
+    return get(task, value.substr(1));
+  }
   return value ?? "";
 };
 
