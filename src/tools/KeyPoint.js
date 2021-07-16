@@ -28,8 +28,6 @@ const _Tool = types
       const c = self.control;
       if (c.type === "keypointlabels" && !c.isSelected) return;
 
-      //if (!self.obj.checkLabels()) return;
-
       const keyPoint = self.createRegion({
         x: x,
         y: y,

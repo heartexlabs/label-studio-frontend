@@ -1,7 +1,7 @@
 import React from "react";
 import { Rect, Circle } from "react-konva";
 import { observer } from "mobx-react";
-import { types, getParent, hasParent } from "mobx-state-tree";
+import { types, getParent, hasParent, getRoot } from "mobx-state-tree";
 
 import { guidGenerator } from "../core/Helpers";
 import Types from "../core/Types";
@@ -39,7 +39,7 @@ const PolygonPoint = types
     },
 
     get annotation() {
-      return Types.getParentOfTypeString(self, "Annotation");
+      return getRoot(self).annotationStore.selected;
     },
   }))
   .actions(self => ({

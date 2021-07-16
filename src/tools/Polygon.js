@@ -4,6 +4,7 @@ import BaseTool, { DEFAULT_DIMENSIONS } from "./Base";
 import ToolMixin from "../mixins/Tool";
 import { MultipleClicksDrawingTool } from "../mixins/DrawingTool";
 import { NodeViews } from "../components/Node/Node";
+import { observe } from "mobx";
 
 const _Tool = types
   .model("PolygonTool")
@@ -15,11 +16,11 @@ const _Tool = types
     };
     return {
       get getActivePolygon() {
-        const poly = self.getActiveShape;
+        const poly = self.currentArea;
 
         if (poly && poly.closed) return null;
         if (poly === undefined) return null;
-        if (poly.type !== "polygonregion") return null;
+        if (poly && poly.type !== "polygonregion") return null;
 
         return poly;
       },
@@ -71,11 +72,26 @@ const _Tool = types
       },
     };
   })
-  .actions(self => ({
-    closeCurrent() {
-      self.getCurrentArea().closePoly();
-    },
-  }));
+  .actions(self => {
+    let disposer;
+    let closed;
+    return {
+      listenForClose() {
+        closed = false;
+        disposer = observe(self.getCurrentArea(), "closed", ()=>{
+          if (self.getCurrentArea().closed && !closed) {
+            self.finishDrawing();
+          }
+        }, true);
+      }, 
+      closeCurrent() {
+        if (disposer) disposer();
+        if (closed) return;
+        closed = true;
+        self.getCurrentArea().closePoly();
+      },
+    };
+  });
 
 const Polygon = types.compose(ToolMixin, BaseTool, MultipleClicksDrawingTool, _Tool);
 

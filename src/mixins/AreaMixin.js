@@ -16,10 +16,6 @@ export const AreaMixin = types
       return self.id.replace(/#.*/, "");
     },
 
-    get annotation() {
-      return getParent(self, 2);
-    },
-
     get labeling() {
       return self.results.find(r => r.type.endsWith("labels") && r.hasValue);
     },

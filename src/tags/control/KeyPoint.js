@@ -43,11 +43,7 @@ const Model = types
     get hasStates() {
       const states = self.states();
       return states && states.length > 0;
-    },
-
-    get annotation() {
-      return getRoot(self).annotationStore.selected;
-    },
+    }
   }))
   .actions(self => ({
     fromStateJSON(obj) {},

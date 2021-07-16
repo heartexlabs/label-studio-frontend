@@ -45,7 +45,7 @@ const _Tool = types
     },
   }))
   .actions(self => {
-    let brush;
+    let brush, isFirstBrushStroke;
     return {
       fromStateJSON(json, controlTag) {
         const region = self.createFromJSON(json, controlTag);
@@ -60,6 +60,16 @@ const _Tool = types
         }
 
         return region;
+      },
+
+      commitDrawingRegion() {
+        const {currentArea, control, obj} = self;
+        const source = currentArea.toJSON();
+        const value = {coordstype: "px", touches: source.touches};
+        const newArea = self.annotation.createResult(value, currentArea.results[0].value.toJSON(), control, obj);
+        self.applyActiveStates(newArea);
+        self.deleteRegion();
+        return newArea;
       },
 
       // fromStateJSON(obj, fromModel) {
@@ -113,7 +123,10 @@ const _Tool = types
         self.mode = "viewing";
         brush.setDrawing(false);
         brush.endPath();
-        self.obj.annotation.selectArea(brush);
+        if (isFirstBrushStroke) {
+          const newBrush = self.commitDrawingRegion();
+          self.obj.annotation.selectArea(newBrush);
+        }
       },
 
       mousemoveEv(ev, [x, y]) {
@@ -143,7 +156,7 @@ const _Tool = types
         brush = self.getSelectedShape;
         if (brush && brush.type === "brushregion") {
           self.mode = "drawing";
-
+          isFirstBrushStroke = false;
           brush.beginPath({
             type: "add",
             strokeWidth: self.strokeWidth || c.strokeWidth,
@@ -153,8 +166,8 @@ const _Tool = types
         } else {
           if (self.tagTypes.stateTypes === self.control.type && !self.control.isSelected) return;
           self.mode = "drawing";
-
-          brush = self.createRegion({
+          isFirstBrushStroke = true;
+          brush = self.createDrawingRegion({
             touches: [],
             coordstype: "px",
           });

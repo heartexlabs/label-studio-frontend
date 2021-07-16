@@ -154,9 +154,6 @@ const Model = types
 
     closePoly() {
       self.closed = true;
-      self.setDrawing(false);
-      self.selectRegion();
-      self.annotation.history.unfreeze();
     },
 
     canClose(x, y) {

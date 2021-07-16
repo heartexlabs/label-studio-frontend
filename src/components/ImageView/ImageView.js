@@ -67,6 +67,14 @@ const Regions = memo(({regions, useLayers = true}) => {
   ));
 });
 
+const DrawingRegion = observer(({item}) => {
+  const {drawingRegion} = item;
+  const Wrapper = drawingRegion && drawingRegion.type === "brushregion" ? Fragment: Layer;
+  return <Wrapper>
+    {drawingRegion?<Region key={`drawing`} region={drawingRegion}/>:drawingRegion}
+  </Wrapper>;
+});
+
 const Crosshair = memo(forwardRef(({width, height}, ref) => {
   const [pointsV, setPointsV] = useState([50, 0, 50, height]);
   const [pointsH, setPointsH] = useState([0, 100, width, 100]);
@@ -574,6 +582,8 @@ export default observer(
                   </Layer>
                 )
               )}
+
+              <DrawingRegion item={item}/>
 
               {item.crosshair && (
                 <Crosshair

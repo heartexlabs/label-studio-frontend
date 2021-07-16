@@ -78,15 +78,25 @@ const Model = types
       self.startX = self.x;
       self.startY = self.y;
 
-      if (self.coordstype === "perc") {
-        self.relativeX = self.x;
-        self.relativeY = self.y;
-        self.relativeWidth = self.width;
-        self.relativeHeight = self.height;
+      switch (self.coordstype)  {
+        case "perc": {
+          self.relativeX = self.x;
+          self.relativeY = self.y;
+          self.relativeWidth = self.width;
+          self.relativeHeight = self.height;
 
-        const { naturalWidth, naturalHeight, stageWidth: width, stageHeight: height } = self.parent;
-        if (width && height) {
-          self.updateImageSize(width / naturalWidth, height / naturalHeight, width, height);
+          const { naturalWidth, naturalHeight, stageWidth: width, stageHeight: height } = self.parent;
+          if (width && height) {
+            self.updateImageSize(width / naturalWidth, height / naturalHeight, width, height);
+          }
+          break;
+        }
+        case "px": {
+          const { stageWidth, stageHeight } = self.parent;
+          if (stageWidth && stageHeight) {
+            self.setPosition(self.x, self.y, self.width, self.height, self.rotation);
+          }
+          break;
         }
       }
 
